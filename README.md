@@ -22,6 +22,10 @@ $ xxd ciphertxt
 $ cat ciphertxt | xor -k cipherkey
 Plaintext
 
+# xor files together
+$ xor ciphertxt plaintxt
+cipherkeyc
+
 # base64 key
 $ echo -n cipherkey | base64
 Y2lwaGVya2V5
