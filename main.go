@@ -41,7 +41,7 @@ func handlePanic() {
 
 func init() {
 	flag.Usage = usage
-	flag.StringVarP(&keyInput, "key", "k", "", "The input key/file. (required)")
+	flag.StringVarP(&keyInput, "key", "k", "", "The input key/file.")
 	flag.BoolVarP(&isBase64, "base64", "b", false, "Specifies the key is base64 encoded.")
 	flag.BoolVarP(&isHex, "hex", "h", false, "Specifies the key is in hex format.")
 	flag.BoolVarP(&isFile, "file", "f", false, "Specifies the input key is a file.")
@@ -51,11 +51,6 @@ func init() {
 
 func main() {
 	defer handlePanic()
-
-	if keyInput == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
 
 	files := flag.Args()
 
@@ -95,18 +90,24 @@ func main() {
 		panic(err)
 	}
 
-	if len(key) == 0 {
-		panic("key length cannot be zero.")
-	}
-
 	if len(files) > 0 {
-		for _, file := range files {
-			err := xorFile(file)
+		if len(key) == 0 {
+			err := xorFiles(files...)
 			if err != nil {
 				panic(err)
 			}
+		} else {
+			for _, file := range files {
+				err := xorFile(file)
+				if err != nil {
+					panic(err)
+				}
+			}
 		}
 	} else {
+		if len(key) == 0 {
+			panic("key length cannot be zero.")
+		}
 		xorStdin()
 	}
 }
@@ -132,6 +133,47 @@ func xorStdin() {
 			panic(err)
 		}
 	}
+}
+
+func xorFiles(files ...string) (err error) {
+	if len(files) == 0 {
+		panic("no files specified")
+	}
+	fds := make([]*os.File, 0, len(files))
+	for _, file := range files {
+		fd, err := os.OpenFile(file, os.O_RDONLY, 0)
+		if err != nil {
+			panic(fmt.Errorf("failed to open file: %s", file))
+		}
+		fds = append(fds, fd)
+	}
+	readBuf := make([]byte, 1024*8)
+	xorBuf := make([]byte, 1024*8)
+	for {
+		clear(xorBuf)
+		// Read into buffer
+		eof := false
+		minRead := len(readBuf)
+		for _, fd := range fds {
+			n, err := fd.Read(readBuf)
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					eof = true
+				} else {
+					panic(fmt.Errorf("failed to read from %s: %s", fd.Name(), err))
+				}
+			}
+			minRead = min(minRead, n)
+			for i := 0; i < minRead; i++ {
+				xorBuf[i] ^= readBuf[i]
+			}
+		}
+		os.Stdout.Write(xorBuf[:minRead])
+		if minRead <= 0 || eof || minRead < len(readBuf) {
+			break
+		}
+	}
+	return
 }
 
 func xorFile(inPath string) error {
