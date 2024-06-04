@@ -2,6 +2,13 @@
 
 A basic command-line XOR cipher tool.
 
+# Installation
+
+Requires Go 1.21.1+.
+```sh
+go install b7c.io/xor@latest
+```
+
 # Usage
 
 `xor [options] -k key [files...]`
@@ -72,11 +79,4 @@ $ cat *.txt
 Plaintext a
 Plaintext b
 Plaintext c
-```
-
-# Installation
-
-Requires Go 1.21.1.
-```sh
-go install b7c.io/xor@latest
 ```
